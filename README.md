@@ -69,7 +69,7 @@ avg_hashrate = (Σ hashrate(h)) / 10
 ## ⚡ Quick Start
 
 ```bash
-git clone https://github.com/yourusername/bsv-hashrate-estimator.git
+git clone https://github.com/sirdeggen/bsv-hash-watch.git
 cd bsv-hashrate-estimator
 npm install
 npm run dev
