@@ -232,25 +232,14 @@ const App: React.FC = () => {
           
           <div className="flex flex-col gap-2">
             <div className="flex gap-2">
-              {!state.hasFullData && (
-                <Button
+              <Button
                   onClick={fetchFullData}
                   disabled={state.isLoadingFull}
                   className="bg-blue-600 hover:bg-blue-700 text-white transition-smooth"
                 >
                   <RefreshCw className={`mr-2 h-4 w-4 ${state.isLoadingFull ? 'animate-spin' : ''}`} />
-                  Get Last 100 Blocks
+                  {state.hasFullData ? 'Refresh' : 'Get Last 100 Blocks'}
                 </Button>
-              )}
-              
-              <Button
-                onClick={handleRefresh}
-                disabled={state.isLoading || state.isLoadingFull}
-                className="bg-bsv-gold hover:bg-bsv-gold/90 text-bsv-gold-dark transition-smooth"
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${(state.isLoading || state.isLoadingFull) ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
             </div>
             
             {/* Progress indicator */}

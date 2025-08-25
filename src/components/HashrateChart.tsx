@@ -32,13 +32,15 @@ interface HashrateChartProps {
 export const HashrateChart: React.FC<HashrateChartProps> = ({ data, isLoading }) => {
   const chartData = useMemo(() => {
     const validData = data.filter(d => d.hashrate !== null);
+    // Sort by height ascending so higher block numbers appear on the right
+    const sortedData = validData.sort((a, b) => a.height - b.height);
     
     return {
-      labels: validData.map(d => d.height.toString()),
+      labels: sortedData.map(d => d.height.toString()),
       datasets: [
         {
           label: 'Hash Rate',
-          data: validData.map(d => d.hashrate),
+          data: sortedData.map(d => d.hashrate),
           borderColor: 'hsl(39 100% 50%)',
           backgroundColor: 'rgba(255, 193, 7, 0.1)',
           borderWidth: 3,

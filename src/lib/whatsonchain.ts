@@ -54,33 +54,52 @@ class WhatsOnChainError extends Error {
 class RateLimitedClient {
   private queue: Array<() => Promise<void>> = [];
   private isProcessing = false;
+  private aborted = false;
 
   async enqueue<T>(fn: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
       this.queue.push(async () => {
         try {
+          if (this.aborted) {
+            reject(new WhatsOnChainError('Requests aborted due to rate limit'));
+            return;
+          }
           const result = await fn();
           resolve(result);
         } catch (error) {
+          if (error instanceof WhatsOnChainError && error.status === 429) {
+            this.abort();
+          }
           reject(error);
         }
       });
       
-      if (!this.isProcessing) {
-        this.processQueue();
-      }
+      this.processQueue();
     });
   }
 
+  abort() {
+    this.aborted = true;
+    this.queue.length = 0; // Clear remaining requests
+  }
+
+  reset() {
+    this.aborted = false;
+  }
+
   private async processQueue() {
+    if (this.isProcessing || this.queue.length === 0) {
+      return;
+    }
+
     this.isProcessing = true;
     
-    while (this.queue.length > 0) {
+    while (this.queue.length > 0 && !this.aborted) {
       const task = this.queue.shift();
       if (task) {
         await task();
-        // Wait for rate limit delay before processing next request
-        if (this.queue.length > 0) {
+        // Wait between requests to respect rate limit
+        if (this.queue.length > 0 && !this.aborted) {
           await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
         }
       }
@@ -195,6 +214,12 @@ async function fetchWithTimeout(url: string, timeoutMs = TIMEOUT_MS): Promise<Re
       clearTimeout(timeoutId);
       
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new WhatsOnChainError(
+            'Rate limit exceeded. Please wait a moment before trying again.',
+            429
+          );
+        }
         throw new WhatsOnChainError(
           `API request failed: ${response.status} ${response.statusText}`,
           response.status
@@ -393,6 +418,9 @@ export async function getLast100Blocks(
   onProgress?: BlockProgressCallback
 ): Promise<Map<number, BlockHeader>> {
   try {
+    // Reset rate limiter in case it was previously aborted
+    rateLimitedClient.reset();
+    
     // First get the last 10 headers to determine the height range
     const recentHeaders = await getHeaders();
     
@@ -422,6 +450,9 @@ export async function getLast100Blocks(
         }
       }
     }
+    
+    // Sort heights to fetch from highest to lowest for progressive loading
+    heightsToFetch.sort((a, b) => b - a);
     
     // Only fetch blocks that aren't cached
     if (heightsToFetch.length > 0) {
