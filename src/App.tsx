@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
 import { SummaryCard } from "@/components/SummaryCard";
 import { HashrateChart } from "@/components/HashrateChart";
 import { BlockTable } from "@/components/BlockTable";
@@ -196,7 +196,12 @@ const App: React.FC = () => {
     } else {
       fetchInitialData();
     }
-  }, [fetchInitialData, fetchFullData, state.hasFullData]);
+  }, [state.hasFullData, fetchFullData, fetchInitialData]);
+
+  const handleClearCache = useCallback(() => {
+    localStorage.clear();
+    window.location.reload();
+  }, []);
 
   if (state.error && !state.lastUpdated) {
     return (
@@ -240,6 +245,15 @@ const App: React.FC = () => {
                   <RefreshCw className={`mr-2 h-4 w-4 ${state.isLoadingFull ? 'animate-spin' : ''}`} />
                   {state.hasFullData ? 'Refresh' : 'Get Last 100 Blocks'}
                 </Button>
+              
+              <Button
+                onClick={handleClearCache}
+                disabled={state.isLoadingFull}
+                className="bg-red-600 hover:bg-red-700 text-white transition-smooth"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Clear Cache
+              </Button>
             </div>
             
             {/* Progress indicator */}

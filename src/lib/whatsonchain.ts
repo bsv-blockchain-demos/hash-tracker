@@ -308,6 +308,7 @@ export async function getBlockByHeight(height: number): Promise<BlockHeader> {
           const tag = script.chunks
             .map(c => Utils.toUTF8(c?.data || []))
             .reduce((allText, txt) => allText + txt.replace('\n', ' '), '')
+            .replace(/[^\x20-\x7E]/g, '')
             .trim();
           
           if (tag && tag.length > 0) {
