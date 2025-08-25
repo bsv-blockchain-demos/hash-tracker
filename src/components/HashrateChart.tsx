@@ -64,9 +64,9 @@ export const HashrateChart: React.FC<HashrateChartProps> = ({ data, isLoading })
         display: false,
       },
       tooltip: {
-        backgroundColor: 'rgba(30, 41, 59, 0.95)',
-        titleColor: 'rgb(248, 250, 252)',
-        bodyColor: 'rgb(248, 250, 252)',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        titleColor: 'rgb(30, 41, 59)',
+        bodyColor: 'rgb(30, 41, 59)',
         borderColor: 'hsl(39 100% 50%)',
         borderWidth: 1,
         cornerRadius: 8,

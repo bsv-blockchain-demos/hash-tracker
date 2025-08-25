@@ -16,12 +16,8 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({
     <Card className="glass-intense rounded-2xl p-8 border-0">
       <div className="text-center space-y-4">
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-bsv-gold to-yellow-400 bg-clip-text text-transparent">
-          BSV Estimated Hash Rate
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Latest Blocks Analysis
-        </p>
-        
+          BSV Blockchain Hash Rate
+        </h1>        
         <div className="pt-6">
           {isLoading ? (
             <div className="space-y-4">
@@ -30,12 +26,12 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="text-5xl md:text-6xl font-bold text-foreground glow-gold">
+              <div className="text-5xl md:text-6xl font-bold text-foreground">
                 {averageHashrate}
               </div>
               {blockRange && (
                 <div className="text-muted-foreground text-lg">
-                  Heights {blockRange.start.toLocaleString()}–{blockRange.end.toLocaleString()}
+                  Current Height {blockRange.end.toLocaleString()}
                 </div>
               )}
             </div>
