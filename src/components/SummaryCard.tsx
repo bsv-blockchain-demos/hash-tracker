@@ -19,7 +19,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({
           BSV Estimated Hash Rate
         </h1>
         <p className="text-muted-foreground text-lg">
-          Last 10 blocks network analysis
+          Latest Blocks Analysis
         </p>
         
         <div className="pt-6">

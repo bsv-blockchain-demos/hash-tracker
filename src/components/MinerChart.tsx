@@ -76,7 +76,6 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
       
       {/* Summary table */}
       <div className="mt-6">
-        <h4 className="text-md font-medium mb-3">Miner Summary</h4>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
