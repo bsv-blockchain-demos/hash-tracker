@@ -16,7 +16,6 @@ export interface MinerStats {
   address: string;
   blockCount: number;
   percentage: number;
-  displayName: string;
 }
 
 // Difficulty 1 target (Bitcoin's genesis difficulty)
@@ -105,8 +104,7 @@ export function calculateMinerStats(headers: Map<number, BlockHeader>): MinerSta
     stats.push({
       address,
       blockCount: count,
-      percentage: (count / totalBlocks) * 100,
-      displayName: address
+      percentage: (count / totalBlocks) * 100
     });
   });
 

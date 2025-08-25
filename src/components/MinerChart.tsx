@@ -23,10 +23,9 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
 
   // Prepare data for the chart
   const chartData = minerStats.map((miner, index) => ({
-    name: miner.displayName,
+    name: miner.address,
     value: miner.blockCount,
     percentage: miner.percentage,
-    fullAddress: miner.address,
     color: COLORS[index % COLORS.length]
   }));
 
@@ -38,7 +37,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
           <p className="font-medium">{data.name}</p>
           <p className="text-sm text-gray-600">Blocks: {data.value}</p>
           <p className="text-sm text-gray-600">Percentage: {data.percentage.toFixed(1)}%</p>
-          <p className="text-xs text-gray-500 mt-1 break-all">{data.fullAddress}</p>
+          <p className="text-xs text-gray-500 mt-1 break-all">{data.name}</p>
         </div>
       );
     }
@@ -46,21 +45,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
   };
 
   const CustomLegend = ({ payload }: any) => {
-    return (
-      <div className="flex flex-wrap justify-center gap-2 mt-4">
-        {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-1 text-sm">
-            <div 
-              className="w-3 h-3 rounded-full" 
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-gray-700">
-              {entry.value} ({chartData[index]?.percentage.toFixed(1)}%)
-            </span>
-          </div>
-        ))}
-      </div>
-    );
+    return null;
   };
 
   return (
@@ -107,11 +92,11 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
                   <td className="py-2">
                     <div className="flex items-center gap-2">
                       <div 
-                        className="w-3 h-3 rounded-full" 
+                        className="w-3 h-3 rounded-full flex-shrink-0" 
                         style={{ backgroundColor: COLORS[index % COLORS.length] }}
                       />
-                      <span className="font-mono text-xs">
-                        {miner.displayName}
+                      <span className="font-mono text-xs break-all">
+                        {miner.address}
                       </span>
                     </div>
                   </td>
