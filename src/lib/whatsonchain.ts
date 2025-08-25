@@ -97,26 +97,32 @@ export async function getHeader(height: number): Promise<BlockHeader> {
   }
 }
 
-export async function getHeaders(heights: number[]): Promise<Map<number, BlockHeader>> {
-  const promises = heights.map(async (height) => {
-    try {
-      const header = await getHeader(height);
-      return [height, header] as const;
-    } catch (error) {
-      console.error(`Failed to fetch header for height ${height}:`, error);
-      return null;
+export async function getHeaders(): Promise<Map<number, BlockHeader>> {
+  try {
+    const response = await fetchWithTimeout(`${BASE_URL}/block/headers`);
+    const data: BlockHeader[] = await response.json();
+    
+    if (!Array.isArray(data)) {
+      throw new WhatsOnChainError('Invalid headers data returned from API');
     }
-  });
-  
-  const results = await Promise.allSettled(promises);
-  const headerMap = new Map<number, BlockHeader>();
-  
-  results.forEach((result, index) => {
-    if (result.status === 'fulfilled' && result.value) {
-      const [height, header] = result.value;
-      headerMap.set(height, header);
+    
+    const headerMap = new Map<number, BlockHeader>();
+    
+    data.forEach((header) => {
+      // Validate required fields
+      if (!header.hash || typeof header.height !== 'number' || typeof header.time !== 'number') {
+        console.warn(`Invalid header data for height ${header.height}:`, header);
+        return;
+      }
+      
+      headerMap.set(header.height, header);
+    });
+    
+    return headerMap;
+  } catch (error) {
+    if (error instanceof WhatsOnChainError) {
+      throw error;
     }
-  });
-  
-  return headerMap;
+    throw new WhatsOnChainError(`Failed to fetch headers: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }

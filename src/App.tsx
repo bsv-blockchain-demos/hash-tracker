@@ -76,20 +76,11 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Get current blockchain tip
-      const tipHeight = await getTipHeight();
+      // Fetch the last 10 headers from WhatsOnChain
+      const headerMap = await getHeaders();
       
-      // Calculate heights needed: last 10 blocks plus one previous for delta calculation
-      const heights: number[] = [];
-      for (let i = tipHeight - 10; i <= tipHeight; i++) {
-        heights.push(i);
-      }
-      
-      // Fetch all headers in parallel
-      const headerMap = await getHeaders(heights);
-      
-      if (headerMap.size < 11) {
-        throw new Error(`Only received ${headerMap.size} headers, expected 11`);
+      if (headerMap.size < 10) {
+        throw new Error(`Only received ${headerMap.size} headers, expected at least 10`);
       }
       
       // Process the hash rate calculations
