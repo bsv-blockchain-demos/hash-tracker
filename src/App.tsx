@@ -6,14 +6,19 @@ import { SummaryCard } from "@/components/SummaryCard";
 import { HashrateChart } from "@/components/HashrateChart";
 import { BlockTable } from "@/components/BlockTable";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
-import { getTipHeight, getHeaders } from "@/lib/whatsonchain";
-import { processBlockHashrates, BlockHashrateData } from "@/lib/hashrate";
+import MinerChart from "@/components/MinerChart";
+import { getLast100Blocks, getLast10BlocksWithMinerData, BlockProgressCallback } from './lib/whatsonchain';
+import { processBlockHashrates, BlockHashrateData, MinerStats } from "@/lib/hashrate";
 
 interface AppState {
   blockData: BlockHashrateData[];
   averageHashrate: string;
   blockRange: { start: number; end: number } | null;
+  minerStats: MinerStats[];
   isLoading: boolean;
+  isLoadingFull: boolean;
+  hasFullData: boolean;
+  fetchProgress: { fetched: number; total: number; percentage: number } | null;
   error: string | null;
   lastUpdated: Date | null;
 }
@@ -26,7 +31,11 @@ const App: React.FC = () => {
     blockData: [],
     averageHashrate: '—',
     blockRange: null,
+    minerStats: [],
     isLoading: true,
+    isLoadingFull: false,
+    hasFullData: false,
+    fetchProgress: null,
     error: null,
     lastUpdated: null,
   });
@@ -71,13 +80,13 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Fetch hash rate data
-  const fetchHashrateData = useCallback(async () => {
+  // Fetch initial 10 blocks
+  const fetchInitialData = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Fetch the last 10 headers from WhatsOnChain
-      const headerMap = await getHeaders();
+      // Fetch the last 10 blocks with miner data from WhatsOnChain
+      const headerMap = await getLast10BlocksWithMinerData();
       
       if (headerMap.size < 10) {
         throw new Error(`Only received ${headerMap.size} headers, expected at least 10`);
@@ -90,7 +99,9 @@ const App: React.FC = () => {
         blockData: result.blockData,
         averageHashrate: result.averageHashrateFormatted,
         blockRange: result.blockRange,
+        minerStats: result.minerStats,
         isLoading: false,
+        hasFullData: false,
         error: null,
         lastUpdated: new Date(),
       };
@@ -108,6 +119,63 @@ const App: React.FC = () => {
     }
   }, [saveCachedData]);
 
+  // Fetch full 100 blocks with progressive updates
+  const fetchFullData = useCallback(async () => {
+    setState(prev => ({ ...prev, isLoadingFull: true, error: null, fetchProgress: null }));
+
+    try {
+      // Progress callback to update UI as blocks are fetched
+      const onProgress: BlockProgressCallback = (currentBlocks, progress) => {
+        // Process the current blocks for display
+        const result = processBlockHashrates(currentBlocks);
+        
+        setState(prev => ({
+          ...prev,
+          blockData: result.blockData,
+          averageHashrate: result.averageHashrateFormatted,
+          blockRange: result.blockRange,
+          minerStats: result.minerStats,
+          fetchProgress: progress,
+          lastUpdated: new Date(),
+        }));
+      };
+
+      // Fetch the last 100 blocks from WhatsOnChain with progressive updates
+      const headerMap = await getLast100Blocks(onProgress);
+      
+      if (headerMap.size < 100) {
+        throw new Error(`Only received ${headerMap.size} blocks, expected 100`);
+      }
+      
+      // Final processing
+      const result = processBlockHashrates(headerMap);
+      
+      const newState = {
+        blockData: result.blockData,
+        averageHashrate: result.averageHashrateFormatted,
+        blockRange: result.blockRange,
+        minerStats: result.minerStats,
+        isLoadingFull: false,
+        hasFullData: true,
+        fetchProgress: null,
+        error: null,
+        lastUpdated: new Date(),
+      };
+      
+      setState(prev => ({ ...prev, ...newState }));
+      saveCachedData(newState);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setState(prev => ({
+        ...prev,
+        isLoadingFull: false,
+        fetchProgress: null,
+        error: errorMessage,
+      }));
+    }
+  }, [saveCachedData]);
+
   // Initialize app
   useEffect(() => {
     const hasCachedData = loadCachedData();
@@ -115,16 +183,20 @@ const App: React.FC = () => {
     if (hasCachedData) {
       // Show cached data immediately, then refresh in background
       setState(prev => ({ ...prev, isLoading: false }));
-      fetchHashrateData();
+      fetchInitialData();
     } else {
       // No cached data, fetch immediately
-      fetchHashrateData();
+      fetchInitialData();
     }
-  }, [loadCachedData, fetchHashrateData]);
+  }, [loadCachedData, fetchInitialData]);
 
   const handleRefresh = useCallback(() => {
-    fetchHashrateData();
-  }, [fetchHashrateData]);
+    if (state.hasFullData) {
+      fetchFullData();
+    } else {
+      fetchInitialData();
+    }
+  }, [fetchInitialData, fetchFullData, state.hasFullData]);
 
   if (state.error && !state.lastUpdated) {
     return (
@@ -158,14 +230,48 @@ const App: React.FC = () => {
             )}
           </div>
           
-          <Button
-            onClick={handleRefresh}
-            disabled={state.isLoading}
-            className="bg-bsv-gold hover:bg-bsv-gold/90 text-bsv-gold-dark transition-smooth"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${state.isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              {!state.hasFullData && (
+                <Button
+                  onClick={fetchFullData}
+                  disabled={state.isLoadingFull}
+                  className="bg-blue-600 hover:bg-blue-700 text-white transition-smooth"
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${state.isLoadingFull ? 'animate-spin' : ''}`} />
+                  Get Last 100 Blocks
+                </Button>
+              )}
+              
+              <Button
+                onClick={handleRefresh}
+                disabled={state.isLoading || state.isLoadingFull}
+                className="bg-bsv-gold hover:bg-bsv-gold/90 text-bsv-gold-dark transition-smooth"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${(state.isLoading || state.isLoadingFull) ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            
+            {/* Progress indicator */}
+            {state.fetchProgress && state.fetchProgress.total > 0 && (
+              <div className="w-full max-w-xs">
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>Fetching blocks...</span>
+                  <span>{state.fetchProgress.fetched}/{state.fetchProgress.total}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${state.fetchProgress.percentage}%` }}
+                  />
+                </div>
+                <div className="text-xs text-gray-500 mt-1 text-center">
+                  {state.fetchProgress.percentage}% complete
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Summary Card */}
@@ -175,11 +281,21 @@ const App: React.FC = () => {
           isLoading={state.isLoading}
         />
 
-        {/* Chart */}
-        <HashrateChart
-          data={state.blockData}
-          isLoading={state.isLoading}
-        />
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white rounded-lg border p-6">
+            <HashrateChart
+              data={state.blockData}
+              isLoading={state.isLoading}
+            />
+          </div>
+          
+          <div className="bg-white rounded-lg border p-6">
+            <MinerChart
+              minerStats={state.minerStats}
+            />
+          </div>
+        </div>
 
         {/* Table */}
         <BlockTable

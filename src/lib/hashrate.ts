@@ -9,6 +9,14 @@ export interface BlockHashrateData {
   deltaTime: number | null;
   hashrate: number | null;
   hashrateFormatted: string;
+  minerAddress?: string;
+}
+
+export interface MinerStats {
+  address: string;
+  blockCount: number;
+  percentage: number;
+  displayName: string;
 }
 
 // Difficulty 1 target (Bitcoin's genesis difficulty)
@@ -76,6 +84,37 @@ export function formatHashrate(hashrate: number, precision = 3): string {
 }
 
 /**
+ * Calculate miner statistics from block headers
+ */
+export function calculateMinerStats(headers: Map<number, BlockHeader>): MinerStats[] {
+  const minerCounts = new Map<string, number>();
+  let totalBlocks = 0;
+
+  // Count blocks per miner
+  headers.forEach(header => {
+    if (header.minerAddress) {
+      const current = minerCounts.get(header.minerAddress) || 0;
+      minerCounts.set(header.minerAddress, current + 1);
+      totalBlocks++;
+    }
+  });
+
+  // Convert to stats array with percentages
+  const stats: MinerStats[] = [];
+  minerCounts.forEach((count, address) => {
+    stats.push({
+      address,
+      blockCount: count,
+      percentage: (count / totalBlocks) * 100,
+      displayName: address
+    });
+  });
+
+  // Sort by block count descending
+  return stats.sort((a, b) => b.blockCount - a.blockCount);
+}
+
+/**
  * Process block headers to calculate hash rates
  */
 export function processBlockHashrates(headers: Map<number, BlockHeader>): {
@@ -83,6 +122,7 @@ export function processBlockHashrates(headers: Map<number, BlockHeader>): {
   averageHashrate: number | null;
   averageHashrateFormatted: string;
   blockRange: { start: number; end: number } | null;
+  minerStats: MinerStats[];
 } {
   const heights = Array.from(headers.keys()).sort((a, b) => a - b);
   
@@ -91,7 +131,8 @@ export function processBlockHashrates(headers: Map<number, BlockHeader>): {
       blockData: [],
       averageHashrate: null,
       averageHashrateFormatted: '—',
-      blockRange: null
+      blockRange: null,
+      minerStats: []
     };
   }
   
@@ -128,7 +169,8 @@ export function processBlockHashrates(headers: Map<number, BlockHeader>): {
       difficulty: header.difficulty || calculateDifficultyFromBits(header.bits),
       deltaTime: deltaTime > 0 ? deltaTime : null,
       hashrate,
-      hashrateFormatted
+      hashrateFormatted,
+      minerAddress: header.minerAddress
     });
   }
   
@@ -141,24 +183,25 @@ export function processBlockHashrates(headers: Map<number, BlockHeader>): {
     averageHashrateFormatted = formatHashrate(averageHashrate);
   }
   
-  // Determine block range (last 10 blocks)
+  // Determine block range (all processed blocks)
   let blockRange: { start: number; end: number } | null = null;
   if (blockData.length > 0) {
     const sortedData = blockData.sort((a, b) => a.height - b.height);
-    const last10 = sortedData.slice(-10);
-    if (last10.length > 0) {
-      blockRange = {
-        start: last10[0].height,
-        end: last10[last10.length - 1].height
-      };
-    }
+    blockRange = {
+      start: sortedData[0].height,
+      end: sortedData[sortedData.length - 1].height
+    };
   }
   
+  // Calculate miner statistics
+  const minerStats = calculateMinerStats(headers);
+  
   return {
-    blockData: blockData.slice(-10), // Return only last 10 blocks
+    blockData: blockData, // Return all blocks for display
     averageHashrate,
     averageHashrateFormatted,
-    blockRange
+    blockRange,
+    minerStats
   };
 }
 
