@@ -23,9 +23,10 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
 
   // Prepare data for the chart
   const chartData = minerStats.map((miner, index) => ({
-    name: miner.address,
+    name: miner.displayName,
     value: miner.blockCount,
     percentage: miner.percentage,
+    address: miner.address,
     color: COLORS[index % COLORS.length]
   }));
 
@@ -37,7 +38,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
           <p className="font-medium">{data.name}</p>
           <p className="text-sm text-gray-600">Blocks: {data.value}</p>
           <p className="text-sm text-gray-600">Percentage: {data.percentage.toFixed(1)}%</p>
-          <p className="text-xs text-gray-500 mt-1 break-all">{data.name}</p>
+          <p className="text-xs text-gray-500 mt-1 break-all">{data.address}</p>
         </div>
       );
     }
@@ -51,7 +52,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
   return (
     <div className="w-full">
       <h3 className="text-lg font-semibold mb-4 text-center">
-        Miner Distribution (Last 100 Blocks)
+        Miner Distribution
       </h3>
       <ResponsiveContainer width="100%" height={400}>
         <PieChart>
@@ -95,7 +96,7 @@ const MinerChart: React.FC<MinerChartProps> = ({ minerStats }) => {
                         style={{ backgroundColor: COLORS[index % COLORS.length] }}
                       />
                       <span className="font-mono text-xs break-all">
-                        {miner.address}
+                        {miner.displayName}
                       </span>
                     </div>
                   </td>

@@ -16,6 +16,7 @@ export interface MinerStats {
   address: string;
   blockCount: number;
   percentage: number;
+  displayName: string;
 }
 
 // Difficulty 1 target (Bitcoin's genesis difficulty)
@@ -86,25 +87,30 @@ export function formatHashrate(hashrate: number, precision = 3): string {
  * Calculate miner statistics from block headers
  */
 export function calculateMinerStats(headers: Map<number, BlockHeader>): MinerStats[] {
-  const minerCounts = new Map<string, number>();
+  const minerCounts = new Map<string, { count: number; tag?: string }>();
   let totalBlocks = 0;
 
-  // Count blocks per miner
+  // Count blocks per miner and collect tags
   headers.forEach(header => {
     if (header.minerAddress) {
-      const current = minerCounts.get(header.minerAddress) || 0;
-      minerCounts.set(header.minerAddress, current + 1);
+      const current = minerCounts.get(header.minerAddress) || { count: 0 };
+      minerCounts.set(header.minerAddress, {
+        count: current.count + 1,
+        tag: header.minerTag || current.tag // Keep the first tag found for this miner
+      });
       totalBlocks++;
     }
   });
 
   // Convert to stats array with percentages
   const stats: MinerStats[] = [];
-  minerCounts.forEach((count, address) => {
+  minerCounts.forEach((data, address) => {
+    const displayName = data.tag && data.tag.length > 0 ? data.tag : address;
     stats.push({
       address,
-      blockCount: count,
-      percentage: (count / totalBlocks) * 100
+      blockCount: data.count,
+      percentage: (data.count / totalBlocks) * 100,
+      displayName
     });
   });
 

@@ -1,4 +1,5 @@
 // WhatsOnChain API client for BSV blockchain data
+import { Script, Utils } from '@bsv/sdk';
 
 export interface BlockHeader {
   hash: string;
@@ -7,9 +8,13 @@ export interface BlockHeader {
   bits: string;
   difficulty: number;
   minerAddress?: string;
+  minerTag?: string;
 }
 
 export interface CoinbaseTx {
+  vin: Array<{
+    coinbase: string;
+  }>;
   vout: Array<{
     scriptPubKey: {
       addresses?: string[];
@@ -291,12 +296,34 @@ export async function getBlockByHeight(height: number): Promise<BlockHeader> {
       throw new WhatsOnChainError(`Invalid block data for height ${height}`);
     }
     
-    // Extract miner address from coinbase transaction
+    // Extract miner tag and address from coinbase transaction
     let minerAddress: string | undefined;
-    if (data.coinbaseTx && data.coinbaseTx.vout && data.coinbaseTx.vout.length > 0) {
-      const coinbaseVout = data.coinbaseTx.vout[0];
-      if (coinbaseVout.scriptPubKey && coinbaseVout.scriptPubKey.addresses && coinbaseVout.scriptPubKey.addresses.length > 0) {
-        minerAddress = coinbaseVout.scriptPubKey.addresses[0];
+    let minerTag: string | undefined;
+    
+    if (data.coinbaseTx) {
+      // Try to extract miner tag from coinbase script
+      try {
+        if (data.coinbaseTx.vin && data.coinbaseTx.vin.length > 0 && data.coinbaseTx.vin[0].coinbase) {
+          const script = Script.fromHex(data.coinbaseTx.vin[0].coinbase);
+          const tag = script.chunks
+            .map(c => Utils.toUTF8(c?.data || []))
+            .reduce((allText, txt) => allText + txt.replace('\n', ' '), '')
+            .trim();
+          
+          if (tag && tag.length > 0) {
+            minerTag = tag;
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to extract miner tag for block ${height}:`, error);
+      }
+      
+      // Extract miner address as fallback
+      if (data.coinbaseTx.vout && data.coinbaseTx.vout.length > 0) {
+        const coinbaseVout = data.coinbaseTx.vout[0];
+        if (coinbaseVout.scriptPubKey && coinbaseVout.scriptPubKey.addresses && coinbaseVout.scriptPubKey.addresses.length > 0) {
+          minerAddress = coinbaseVout.scriptPubKey.addresses[0];
+        }
       }
     }
     
@@ -306,7 +333,8 @@ export async function getBlockByHeight(height: number): Promise<BlockHeader> {
       time: data.time,
       bits: data.bits || '',
       difficulty: data.difficulty || 0,
-      minerAddress
+      minerAddress,
+      minerTag
     };
 
     // Cache the result
