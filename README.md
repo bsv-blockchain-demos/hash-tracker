@@ -56,3 +56,7 @@ Vite writes static assets to `dist/`. The build script bundles the app without a
 - [whatsonchain.ts](src/lib/whatsonchain.ts): API requests, block cache and miner-data extraction.
 - [hashrate.ts](src/lib/hashrate.ts): interval estimates and miner statistics.
 - [src/components/](src/components/): charts, table and status display.
+
+## Licence
+
+**Open BSV Licence v6.** See [LICENSE.txt](LICENSE.txt) for the full terms. The licence applies to this project's original code and documentation and restricts use to the BSV blockchain defined in the licence. Third-party code, assets and referenced standards retain their respective terms.
