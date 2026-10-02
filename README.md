@@ -1,108 +1,58 @@
-# BSV Hash Rate Estimator
+# BSV Hash Rate Explorer
 
-A single-page React app that estimates and visualizes the **Bitcoin SV network hash rate** over the last 10 blocks.  
-It fetches recent block header data from [WhatsOnChain](https://whatsonchain.com) and applies the standard difficulty-based hash rate formula.
+A React dashboard that estimates BSV hash rate from recent block data returned by WhatsOnChain. It presents interval estimates, a block table and miner distribution information, with a larger historical view loaded progressively.
 
----
+The initial view requests ten recent blocks. **Get Last 100 Blocks** expands the dataset; it does not turn the application into a live mining monitor.
 
-## 🚀 Features
+## Run locally
 
-- Fetches latest 10 BSV block headers (plus one earlier for timing).
-- Computes per-block estimated hash rate from header difficulty and block times.
-- Displays:
-  - Line chart of hash rate per block.
-  - Average network hash rate across the last 10 blocks.
-  - Table of block height, time, difficulty, Δt, and hash rate.
-- Beautiful, responsive, dark-mode-first UI.
-- Refresh button and graceful error handling.
-- Caches last successful result in `localStorage`.
+Use Node.js 22 and npm.
 
----
-
-## 📊 How the Calculation Works
-
-### 1. Block header fields
-From each block header we use:
-- `time` → the block timestamp (seconds since epoch, set by miner).
-- `bits` → compact representation of the proof-of-work target.
-- `difficulty` → already computed by WhatsOnChain, but can also be derived from `bits`.
-
-### 2. Difficulty and target
-The Bitcoin system defines difficulty relative to the “difficulty-1 target” (the target used in the genesis block, `0x1d00ffff`).  
-For any block:
-
-```
-target = mantissa * 2^(8*(exponent-3))
-difficulty = diff1_target / target
+```sh
+npm ci
+npm run dev -- --host 127.0.0.1
 ```
 
-Where `mantissa` and `exponent` are extracted from the `bits` field.
+Open `http://localhost:8080`, the port configured in [vite.config.ts](vite.config.ts). No wallet, API credential, environment file or application backend is required. The browser needs access to the public WhatsOnChain API.
 
-### 3. Expected work per block
-On average, a miner must perform:
+## Data and calculations
 
-```
-expected_hashes = difficulty × 2^32
-```
+The client uses mainnet block headers and block details. It extracts miner labels from coinbase data where available and groups miner counts by the returned address.
 
-hash operations to find a valid block at the given difficulty.
+For each pair of available blocks, [hashrate.ts](src/lib/hashrate.ts) calculates:
 
-### 4. Estimating actual rate
-If a block at height `h` was found at time `t(h)`, and the previous block at `h-1` was at time `t(h-1)`, then:
-
-```
-Δt = t(h) - t(h-1)   // seconds
-hashrate(h) = (difficulty × 2^32) / Δt
+```text
+interval estimate = difficulty * 2^32 / elapsed seconds
 ```
 
-This gives an **estimate of the average network hash rate during that interval**, measured in hashes per second.
+Difficulty comes from the API, with a compact-target calculation as a fallback. Non-positive time differences are excluded. The displayed average is the arithmetic mean of the remaining interval estimates.
 
-### 5. Averaging
-To reduce noise (block arrivals are random, Poisson-distributed), the app takes the mean of the last 10 per-block estimates:
+Ten complete, ordered block records provide nine intervals. The larger view can provide up to 99 intervals when all 100 records are available.
 
-```
-avg_hashrate = (Σ hashrate(h)) / 10
-```
+## Interpretation limits
 
----
+Block timestamps are supplied by miners, and short intervals can produce very large estimates. Averaging interval rates is not the same calculation as dividing total estimated work by the full observation period. Treat the display as an exploration of block data rather than a precise measurement of current network capacity.
 
-## ⚡ Quick Start
+When intermediate blocks are missing, the current calculation pairs the next available records without compensating for the skipped heights. Progressive results and partial downloads can therefore distort the displayed estimate.
 
-```bash
-git clone https://github.com/sirdeggen/bsv-hash-watch.git
-cd bsv-hash-watch
-npm install
-npm run dev
-```
+Miner percentages cover records with an extracted miner address, not necessarily every fetched block. Missing or shared coinbase addresses and tags limit attribution.
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+## Caching and controls
 
----
+The app caches its summary in local storage for five minutes and maintains a separate block cache. Refresh and cache controls affect the browser's stored view and API retrieval; they do not change blockchain data.
 
-## 📦 Deploy
+Requests are queued and spaced by the client. API failures and rate limits can interrupt or slow the larger download, and cached results may be older than the chain tip.
 
-This project is ready to deploy on [Vercel](https://vercel.com), [Netlify](https://www.netlify.com/), or any static host:
+## Build and source guide
 
-```bash
+```sh
 npm run build
+npm run preview -- --host 127.0.0.1
 ```
 
-Outputs to `/dist`.
+Vite writes static assets to `dist/`. The build script bundles the app without a separate TypeScript checking step. `npm run lint` and `npm run build:dev` are also available; no automated test script is defined.
 
----
-
-## 📝 Notes
-
-- The estimate depends on **block timestamps**, which are miner-supplied and can be skewed by a few seconds or minutes. Over a 10-block window, such noise averages out reasonably well.
-- True instantaneous hash rate is unknowable; this method is the industry-standard approximation.
-- Units are auto-formatted: H/s, kH/s, MH/s, GH/s, TH/s, PH/s, EH/s.
-
----
-
-## 📚 References
-
-- [WhatsOnChain API](https://developers.whatsonchain.com/#introduction)
-- Bitcoin protocol difficulty formula: [Bitcoin Wiki – Difficulty](https://en.bitcoin.it/wiki/Difficulty)
-- Satoshi Nakamoto, *Bitcoin: A Peer-to-Peer Electronic Cash System*
-
----
+- [src/App.tsx](src/App.tsx): active dashboard, loading and summary cache.
+- [whatsonchain.ts](src/lib/whatsonchain.ts): API requests, block cache and miner-data extraction.
+- [hashrate.ts](src/lib/hashrate.ts): interval estimates and miner statistics.
+- [src/components/](src/components/): charts, table and status display.
